@@ -4,15 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "==4.0"
+django = "==3.2"
 psycopg2 = "==2.9.2"
+django-webpack-loader = "==0.7.0"
 
 [dev-packages]
 black = "==21.12b0"
 flake8 = "==4.0.1"
 
 [requires]
-python_version = "3.9"
+python_version = "3.8"
 
 [pipenv]
 allow_prereleases = true

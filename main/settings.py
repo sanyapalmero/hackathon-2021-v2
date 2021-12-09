@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "webpack_loader",
     "users",
 ]
 
@@ -142,6 +143,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 try:
-    from .local_settings import *
+    from .local_settings import *  # noqa
 except ImportError:
     pass
