@@ -1,4 +1,3 @@
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const BundleTracker = require('./webpack-ext/bundler-tracker');
 
 module.exports = {
@@ -29,7 +28,7 @@ module.exports = {
           {
             loader: "sass-loader",
             options: {
-                sourceMap: true,
+              sourceMap: true,
             },
           },
         ]
@@ -46,7 +45,6 @@ module.exports = {
     ]
   },
   plugins: [
-    new CleanWebpackPlugin(),
     new BundleTracker({ filename: './webpack-stats.json' }),
   ],
   resolve: {
@@ -56,5 +54,6 @@ module.exports = {
     filename: "[name]-[fullhash:16].js",
     path: __dirname + "/static/dist/",
     publicPath: '/static/dist/',
+    clean: true,
   }
 };
