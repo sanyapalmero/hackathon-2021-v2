@@ -1,5 +1,4 @@
 {% load render_bundle from webpack_loader %}
-{% load pwa %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -9,7 +8,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hackathon</title>
     {% render_bundle 'main' 'css' %}
-    <!-- {% progressive_web_app_meta %} -->
 </head>
 <body>
     <div class="navbar navbar-expand-lg navbar-dark bg-primary">
