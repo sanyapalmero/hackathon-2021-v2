@@ -1,4 +1,5 @@
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const { ProvidePlugin } = require('webpack');
 const BundleTracker = require('./webpack-ext/bundler-tracker');
 
 module.exports = {
@@ -35,6 +36,13 @@ module.exports = {
         ]
       },
       {
+        test: require.resolve('janus-gateway'),
+        loader: 'exports-loader',
+         options: {
+           exports: 'Janus',
+         },
+      },
+      {
         test: /\.eot$|\.svg$|\.ttf$|\.woff$|\.woff2$|\.png$|\.gif$/,
         use: {
           loader: 'file-loader',
@@ -48,6 +56,7 @@ module.exports = {
   plugins: [
     new CleanWebpackPlugin(),
     new BundleTracker({ filename: './webpack-stats.json' }),
+    new ProvidePlugin({ adapter: ['webrtc-adapter', 'default'] })
   ],
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.scss', '.css']
