@@ -8,6 +8,7 @@ django = "==3.2"
 psycopg2 = "==2.9.2"
 django-webpack-loader = "==0.7.0"
 django-pwa = "*"
+djangorestframework = "*"
 
 [dev-packages]
 black = "==21.12b0"
