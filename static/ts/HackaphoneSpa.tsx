@@ -6,6 +6,7 @@ interface HackaphoneSpaState {
   dialNumber: string | null,
   activeCall: Call | null,
   isRegisted: boolean,
+  isMuted: boolean,
 }
 
 export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
@@ -20,6 +21,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       dialNumber: null,
       activeCall: null,
       isRegisted: false,
+      isMuted: false,
     }
 
     this.client = CallingClient.get();
@@ -51,6 +53,28 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       console.error(e);
     }
   }
+
+  async changeVolume(event: h.JSX.TargetedMouseEvent<HTMLButtonElement>) {
+    if (!this.state.isMuted) {
+      try {
+        event.preventDefault();
+        this.client.setInMuted(false);
+        this.setState({isMuted: true})
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    else {
+      try {
+        event.preventDefault();
+        this.client.setInMuted(true);
+        this.setState({isMuted: false})
+      } catch (e) {
+        console.error(e)
+      }
+    }
+  }
+
 
   async acceptCall() {
     try {
@@ -158,7 +182,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
             <path d="M3.05 3.05a7 7 0 0 0 0 9.9.5.5 0 0 1-.707.707 8 8 0 0 1 0-11.314.5.5 0 0 1 .707.707zm2.122 2.122a4 4 0 0 0 0 5.656.5.5 0 1 1-.708.708 5 5 0 0 1 0-7.072.5.5 0 0 1 .708.708zm5.656-.708a.5.5 0 0 1 .708 0 5 5 0 0 1 0 7.072.5.5 0 1 1-.708-.708 4 4 0 0 0 0-5.656.5.5 0 0 1 0-.708zm2.122-2.12a.5.5 0 0 1 .707 0 8 8 0 0 1 0 11.313.5.5 0 0 1-.707-.707 7 7 0 0 0 0-9.9.5.5 0 0 1 0-.707zM10 8a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"/>
             </svg>
             </button>
-            <button className="btn-primary rounded-circle m-2 p-3 text-white shadow-sm border border-2 border-secondary" style="width: 10vh; height: 10vh;" data-bs-toggle="tooltip" data-bs-placement="top" title="Звук">
+            <button onClick={(event) => { this.changeVolume(event) }} className="btn-primary rounded-circle m-2 p-3 text-white shadow-sm border border-2 border-secondary" style="width: 10vh; height: 10vh;" data-bs-toggle="tooltip" data-bs-placement="top" title="Звук">
             {/* <!-- кнопка включенного звука --> */}
             <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" fill="currentColor" class="bi bi-volume-up" viewBox="0 0 16 16">
               <path d="M11.536 14.01A8.473 8.473 0 0 0 14.026 8a8.473 8.473 0 0 0-2.49-6.01l-.708.707A7.476 7.476 0 0 1 13.025 8c0 2.071-.84 3.946-2.197 5.303l.708.707z"/>
@@ -211,19 +235,15 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   }
 
   render() {
-    let content: preact.JSX.Element | undefined;
-    if (!this.state.isRegisted) {
-      content = this.renderRegistrationWindow();
+    let content: preact.JSX.Element | undefined = this.renderRegistrationWindow();
+    if (this.state.isRegisted && !this.state.activeCall) {
+      content = this.renderNumberInputWindow();
     } else if (this.state.activeCall) {
       if (this.state.activeCall.state === "accepted") {
         content = this.renderCallingWindow();
       } else if (this.state.activeCall.state === "unanswered" && this.state.activeCall.type === "outgoing") {
         content = this.renderCallingWindow();
-      } else {
-        content = this.renderNumberInputWindow();
       }
-    } else {
-      content = this.renderNumberInputWindow();
     }
 
     return (
