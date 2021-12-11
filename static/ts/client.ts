@@ -61,6 +61,10 @@
 // callme();
 
 import { Janus } from "janus-gateway";
+import { Notyf } from 'notyf';
+
+// Create an instance of Notyf
+const notyf = new Notyf();
 
 // weDeclinedIncoming - неначатый звонок отклонили мы.
 // theyDeclinedIncoming - неначатый звонок отклонил абонент на другом конце.
@@ -235,6 +239,7 @@ export default class CallingClient {
     this.assertHasRegistered();
 
     if (!this.activeCall) {
+      notyf.error('Нет активного звонка')
       throw new Error("Нет активного звонка");
     }
 
@@ -298,6 +303,7 @@ export default class CallingClient {
 
   private assertBrowserSupport() {
     if (!Janus.isWebrtcSupported()) {
+      notyf.error('Этот браузер устарел и не поддерживает данный проект.')
       alert("Этот браузер устарел и не поддерживает данный проект.");
       throw new Error("WebRTC is not supported.");
     }
@@ -437,9 +443,11 @@ export default class CallingClient {
         let reason: DeclineReason = 'other';
         let message: string = "Звонок отклонен";
         if (event.msg.result.reason === "User busy") {
+          notyf.error('Абонент занят')
           reason = 'busy';
           message = "Абонент занят";
         } else if (event.msg.result.reason === "We did the hangup") {
+          notyf.error('Абонент отклонил звонок')
           reason = 'theyDeclinedIncoming';
           message = "Абонент отклонил звонок";
         } else if (event.msg.result.reason === "Explicit hangup") {
@@ -470,11 +478,10 @@ export default class CallingClient {
 
   private handlePluginError(error: JanusPluginError) {
     if (error.code === 478) {
-      // Пользователь не существует
+      notyf.error('Пользователь не существует');// Пользователь не существует
       if (this.activeCall && this.activeCall.state === "unanswered") {
         let declinedCall = this.activeCall;
         this.activeCall = null;
-
         declinedCall.state = "declined";
         this.emitEvent({
           type: "callStateChange",
@@ -484,7 +491,7 @@ export default class CallingClient {
         })
       }
     } else if (error.code === 479) {
-      // Нельзя позвонить себе
+      notyf.error('Нельзя позвонить себе');// Нельзя позвонить себе
       if (this.activeCall && this.activeCall.state === "unanswered") {
         let declinedCall = this.activeCall;
         this.activeCall = null;
@@ -534,6 +541,7 @@ export default class CallingClient {
 
   private assertHasRegistered() {
     if (!this.hasRegistered) {
+      notyf.error('CallingClient не зарегистрирован.')
       throw new Error("CallingClient не зарегистрирован.");
     }
   }
