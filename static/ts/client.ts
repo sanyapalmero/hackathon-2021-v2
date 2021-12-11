@@ -62,15 +62,25 @@
 
 import { Janus } from "janus-gateway";
 
+// weDeclinedIncoming - неначатый звонок отклонили мы.
+// theyDeclinedIncoming - неначатый звонок отклонил абонент на другом конце.
+// busy - абонент занят.
+// error - не удалось начать звонок. Скорее всего, ошибка в номере.
+// other - неизвестная причина.
 export type DeclineReason = 'weDeclinedIncoming' | 'theyDeclinedIncoming' | 'busy' | 'error' | 'other';
 
 export interface CallStateChangeEvent {
   type: "callStateChange",
   call: Call,
+  // Задаются при call.state === 'declined'
   declineReason?: DeclineReason,
   declineMessage?: string,
 }
 
+// unanswered - соединение между абонентами еще не установлено.
+// declined - звонок отклонен до начала.
+// accepted - звонок принят, соединение установлено.
+// finished - завершен начатый звонок.
 export type CallState = 'unanswered' | 'declined' | 'accepted' | 'finished';
 
 export interface Call {
@@ -149,7 +159,7 @@ export default class CallingClient {
         success: async (jsep: any) => {
           // Задаем activeCall здесь, а не во вложенном success ниже,
           // потому что Janus может прислать событие hangup по этому звонку
-          // до того send выполнится. А нам важно иметь activeCall на момент приема hangup.
+          // до того как send выполнится. А нам важно иметь activeCall на момент приема hangup.
           this.activeCall = {
             type: "outgoing",
             fromNumber: this.number!,
@@ -170,13 +180,11 @@ export default class CallingClient {
               resolve();
             },
             error: (error: any) => {
-              alert("Не удалось инициировать звонок");
               reject(error);
             }
           });
         },
         error: (error: any) => {
-          alert("Не удалось инициировать звонок");
           reject(error);
         }
       });
@@ -294,7 +302,6 @@ export default class CallingClient {
           resolve();
         },
         error: (error: any) => {
-          alert("Не удалось создать сессию Janus");
           reject(error);
         },
       });
@@ -311,11 +318,7 @@ export default class CallingClient {
           resolve();
         },
         error: (error: any) => {
-          alert("Не удалось подключить плагин AudioBridge");
           reject(error);
-        },
-        consentDialog: (on: boolean) => {
-          console.log("consentDialog", on);
         },
         iceState: (state: any) => {
           Janus.log("ICE state changed to " + state);
@@ -349,16 +352,13 @@ export default class CallingClient {
         },
         onlocalstream: (stream: any) => {
           Janus.debug(" ::: Got a local stream :::", stream);
-          // We're not going to attach the local audio stream
+          // Пока пусто, но этот коллбэк может быть полезен для извлечения мощности сигнала
         },
         onremotestream: (stream: any) => {
-          // TODO: Might be broken
           Janus.debug(" ::: Got a remote stream :::", stream);
 
           let audioElement = this.getAudioElement();
           Janus.attachMediaStream(audioElement, stream);
-
-          // this.pluginHandle.send({ message: { request: "set", audio: true, video: false }});
         },
         oncleanup: () => {
           Janus.log(" ::: Got a cleanup notification :::");
@@ -369,8 +369,6 @@ export default class CallingClient {
 
   private handlePluginEvent(event: JanusPluginEvent) {
     if (event.type === "incomingcall") {
-      console.log("Accepting");
-
       let fromClientId = event.msg.result.username;
       this.activeIncomingCallJanusEvent = event;
       this.activeCall = {
@@ -416,15 +414,12 @@ export default class CallingClient {
                 this.pluginHandle.send({ message: body, jsep: jsep });
               },
               error: (error: any) => {
-                alert("update error");
                 throw error;
               }
             });
         }
       }
     } else if (event.type === "hangup") {
-      console.log("hangup", event);
-
       this.activeIncomingCallJanusEvent = null;
       if (this.activeCall) {
         let hungUpCall = this.activeCall;
