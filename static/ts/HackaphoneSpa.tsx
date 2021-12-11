@@ -211,15 +211,19 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   }
 
   render() {
-    let content: preact.JSX.Element | undefined = this.renderRegistrationWindow();
-    if (this.state.isRegisted && !this.state.activeCall) {
-      content = this.renderNumberInputWindow();
+    let content: preact.JSX.Element | undefined;
+    if (!this.state.isRegisted) {
+      content = this.renderRegistrationWindow();
     } else if (this.state.activeCall) {
       if (this.state.activeCall.state === "accepted") {
         content = this.renderCallingWindow();
       } else if (this.state.activeCall.state === "unanswered" && this.state.activeCall.type === "outgoing") {
         content = this.renderCallingWindow();
+      } else {
+        content = this.renderNumberInputWindow();
       }
+    } else {
+      content = this.renderNumberInputWindow();
     }
 
     return (
