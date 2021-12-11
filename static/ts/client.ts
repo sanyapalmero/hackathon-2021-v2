@@ -60,16 +60,15 @@
 // Входящий звонок можно для удобства спровоцировать, вызвав в консоли браузера:
 // callme();
 
+import { Janus } from "janus-gateway";
 
-async function delay(ms: number) {
-  return new Promise<void>(resolve => {
-    setTimeout(resolve, ms);
-  });
-}
+export type DeclineReason = 'weDeclinedIncoming' | 'theyDeclinedIncoming' | 'busy' | 'error' | 'other';
 
 export interface CallStateChangeEvent {
   type: "callStateChange",
   call: Call,
+  declineReason?: DeclineReason,
+  declineMessage?: string,
 }
 
 export type CallState = 'unanswered' | 'declined' | 'accepted' | 'finished';
@@ -92,13 +91,26 @@ type ClientEventHandler = (event: ClientEvent) => void;
 
 
 export default class CallingClient {
-  number: string | undefined = undefined;
+  static SERVER_URLS = [
+    // "wss://videos-webrtc.dev.avalab.io/websocket",
+    "https://videos-webrtc.dev.avalab.io/restapi",
+  ];
+  static DEBUG_JANUS = true;
+
+  private static singleton: CallingClient | null = null;
+
+  number: string | undefined;
   activeCall: Call | null = null;
+  private activeIncomingCallJanusEvent: JanusPluginEvent | null = null;
+
   isOutMuted: boolean = true;
   isInMuted: boolean = false;
 
   private eventHandlers: ClientEventHandler[] = [];
-  private static singleton: CallingClient | null = null;
+
+  private session: any = null;
+  private pluginHandle: any = null;
+  private hasRegistered: boolean = false;
 
   static get(): CallingClient {
     if (!this.singleton) {
@@ -112,55 +124,376 @@ export default class CallingClient {
   async register(number: string): Promise<void> {
     this.number = number;
 
-    await delay(400);
+    await this.initJanus();
+    this.assertBrowserSupport();
+    await this.initSession();
+    await this.initPlugin();
+    await this.registerInPlugin();
+    this.hasRegistered = true;
+  }
 
-    if (Math.random() < 0.2) {
-      throw new Error("Ошибка при регистрации");
+  get clientId(): string | undefined {
+    if (this.number) {
+      return numberToClientId(this.number);
     } else {
-      // no op
+      return undefined;
     }
   }
 
   async call(number: string): Promise<void> {
-    await delay(400);
+    this.assertHasRegistered();
 
-    if (Math.random() < 0.2) {
-      throw new Error("Абонент занят");
-    } else {
-      this.activeCall = {
-        type: "outgoing",
-        fromNumber: this.number!,
-        toNumber: number,
-        state: "unanswered",
-      };
-      this.emitEvent({
-        type: "callStateChange",
-        call: this.activeCall,
-      });
-
-      setTimeout(() => {
-        if (Math.random() < 0.5) {
-          let declinedCall = this.activeCall!;
-          this.activeCall = null;
-          declinedCall.state = "declined";
-
+    return new Promise<void>((resolve, reject) => {
+      this.pluginHandle.createOffer({
+        media: { video: false, audio: true },
+        success: async (jsep: any) => {
+          // Задаем activeCall здесь, а не во вложенном success ниже,
+          // потому что Janus может прислать событие hangup по этому звонку
+          // до того send выполнится. А нам важно иметь activeCall на момент приема hangup.
+          this.activeCall = {
+            type: "outgoing",
+            fromNumber: this.number!,
+            toNumber: number,
+            state: "unanswered",
+          };
           this.emitEvent({
             type: "callStateChange",
-            call: declinedCall,
+            call: this.activeCall,
           });
-        } else {
-          this.activeCall!.state = "accepted";
-          this.emitEvent({
-            type: "callStateChange",
-            call: this.activeCall!,
+
+          Janus.debug("Got SDP!", jsep);
+          var body = { request: "call", username: numberToClientId(number) };
+          this.pluginHandle.send({
+            message: body,
+            jsep: jsep,
+            success: () => {
+              resolve();
+            },
+            error: (error: any) => {
+              alert("Не удалось инициировать звонок");
+              reject(error);
+            }
           });
+        },
+        error: (error: any) => {
+          alert("Не удалось инициировать звонок");
+          reject(error);
         }
-      }, 3000);
-    }
+      });
+    });
   }
 
   addEventHandler(handler: ClientEventHandler) {
     this.eventHandlers.push(handler);
+  }
+
+  async acceptCall() {
+    this.assertHasRegistered();
+
+    if (!this.activeCall || this.activeCall.type != "incoming" || this.activeCall.state != "unanswered") {
+      throw new Error("Нет входящего звонка");
+    }
+
+    if (!this.activeIncomingCallJanusEvent) {
+      throw new Error("Нет входящего звонка (activeIncomingCallJanusEvent)");
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      this.pluginHandle.createAnswer({
+        jsep: this.activeIncomingCallJanusEvent!.jsep,
+        media: { video: false, audio: true },
+        success: (jsep: any) => {
+          Janus.debug("Got SDP!", jsep);
+          var body = { request: "accept" };
+          this.pluginHandle.send({
+            message: body,
+            jsep: jsep,
+            success: () => {
+              resolve();
+            },
+            error: (error: any) => {
+              reject(error);
+            }
+          });
+        },
+        error: (error: any) => {
+          reject(error);
+        }
+      });
+    });
+  }
+
+  async hangupCall() {
+    this.assertHasRegistered();
+
+    if (!this.activeCall) {
+      throw new Error("Нет активного звонка");
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      this.pluginHandle.send({
+        message: { request: "hangup" },
+        success: () => {
+          resolve();
+        },
+        error: (error: any) => {
+          reject(error);
+        },
+      });
+      this.pluginHandle.hangup();
+    });
+  }
+
+  async setOutMuted(muted: boolean) {
+    this.assertHasRegistered();
+
+    return new Promise<void>((resolve, reject) => {
+      this.pluginHandle.send({
+        message: { request: "set", audio: !muted },
+        success: () => {
+          this.isOutMuted = muted;
+          resolve();
+        },
+        error: (error: any) => {
+          reject(error);
+        },
+      });
+    });
+  }
+
+  async setInMuted(muted: boolean) {
+    this.isInMuted = muted;
+
+    let audioElement = this.getAudioElement();
+    audioElement.volume = muted ? 0.0 : 1.0;
+  }
+
+  private async initJanus() {
+    return new Promise<void>(resolve => {
+      Janus.init({
+        debug: CallingClient.DEBUG_JANUS,
+        callback: () => {
+          resolve();
+        },
+      });
+    });
+  }
+
+  private assertBrowserSupport() {
+    if(!Janus.isWebrtcSupported()) {
+      alert("Этот браузер устарел и не поддерживает данный проект.");
+      throw new Error("WebRTC is not supported.");
+    }
+  }
+
+  private async initSession() {
+    return new Promise<void>((resolve, reject) => {
+      this.session = new Janus({
+        server: CallingClient.SERVER_URLS,
+        success: () => {
+          resolve();
+        },
+        error: (error: any) => {
+          alert("Не удалось создать сессию Janus");
+          reject(error);
+        },
+      });
+    });
+  }
+
+  private async initPlugin() {
+    return new Promise<void>((resolve, reject) => {
+      this.session.attach({
+        plugin: "janus.plugin.videocall",
+        opaqueId: this.clientId,
+        success: (pluginHandle: any) => {
+          this.pluginHandle = pluginHandle;
+          resolve();
+        },
+        error: (error: any) => {
+          alert("Не удалось подключить плагин AudioBridge");
+          reject(error);
+        },
+        consentDialog: (on: boolean) => {
+          console.log("consentDialog", on);
+        },
+        iceState: (state: any) => {
+          Janus.log("ICE state changed to " + state);
+        },
+        mediaState: (medium: any, on: any) => {
+          Janus.log("Janus " + (on ? "started" : "stopped") + " receiving our " + medium);
+        },
+        webrtcState: (on: any) => {
+          Janus.log("Janus says our WebRTC PeerConnection is " + (on ? "up" : "down") + " now");
+        },
+        onmessage: (msg: any, jsep: any) => {
+          Janus.debug(" ::: Got a message :::", msg);
+
+          if (msg["result"]) {
+            let result = msg["result"];
+            if (result["event"]) {
+              this.handlePluginEvent({
+                type: result["event"],
+                msg,
+                jsep,
+              });
+            }
+          }
+
+          if (msg["error"]) {
+            this.handlePluginError({
+              code: msg["error_code"] ? msg["error_code"] : undefined,
+              text: msg["error"] ? msg["error"] : undefined,
+            });
+          }
+        },
+        onlocalstream: (stream: any) => {
+          Janus.debug(" ::: Got a local stream :::", stream);
+          // We're not going to attach the local audio stream
+        },
+        onremotestream: (stream: any) => {
+          // TODO: Might be broken
+          Janus.debug(" ::: Got a remote stream :::", stream);
+
+          let audioElement = this.getAudioElement();
+          Janus.attachMediaStream(audioElement, stream);
+
+          // this.pluginHandle.send({ message: { request: "set", audio: true, video: false }});
+        },
+        oncleanup: () => {
+          Janus.log(" ::: Got a cleanup notification :::");
+        },
+      });
+    });
+  }
+
+  private handlePluginEvent(event: JanusPluginEvent) {
+    if (event.type === "incomingcall") {
+      console.log("Accepting");
+
+      let fromClientId = event.msg.result.username;
+      this.activeIncomingCallJanusEvent = event;
+      this.activeCall = {
+        type: "incoming",
+        state: "unanswered",
+        fromNumber: clientIdToNumber(fromClientId),
+        toNumber: this.number!,
+      };
+      this.emitEvent({
+        type: "incomingCall",
+        call: this.activeCall!,
+      });
+      this.emitEvent({
+        type: "callStateChange",
+        call: this.activeCall!,
+      });
+    } else if (event.type === "accepted") {
+      if(event.jsep) this.pluginHandle.handleRemoteJsep({ jsep: event.jsep });
+
+      this.setOutMuted(true);
+      this.setInMuted(false);
+
+      this.activeIncomingCallJanusEvent = null;
+      if (this.activeCall) {
+        this.activeCall.state = "accepted";
+        this.emitEvent({
+          type: "callStateChange",
+          call: this.activeCall,
+        });
+      }
+    } else if (event.type === "update") {
+      if(event.jsep) {
+        if(event.jsep.type === "answer") {
+          this.pluginHandle.handleRemoteJsep({ jsep: event.jsep });
+        } else {
+          this.pluginHandle.createAnswer(
+            {
+              jsep: event.jsep,
+              media: { video: false, audio: true },
+              success: (jsep: any) => {
+                Janus.debug("Got SDP!", jsep);
+                var body = { request: "set" };
+                this.pluginHandle.send({ message: body, jsep: jsep });
+              },
+              error: (error: any) => {
+                alert("update error");
+                throw error;
+              }
+            });
+        }
+      }
+    } else if (event.type === "hangup") {
+      console.log("hangup", event);
+
+      this.activeIncomingCallJanusEvent = null;
+      if (this.activeCall) {
+        let hungUpCall = this.activeCall;
+        this.activeCall = null;
+
+        let reason: DeclineReason = 'other';
+        let message: string = "Звонок отклонен";
+        if (event.msg.result.reason === "User busy") {
+          reason = 'busy';
+          message = "Абонент занят";
+        } else if (event.msg.result.reason === "We did the hangup") {
+          reason = 'theyDeclinedIncoming';
+          message = "Абонент отклонил звонок";
+        } else if (event.msg.result.reason === "Explicit hangup") {
+          reason = 'weDeclinedIncoming';
+          message = "Вы отклонили звонок";
+        }
+
+        if (hungUpCall.state === "unanswered") {
+          hungUpCall.state = "declined";
+          this.emitEvent({
+            type: "callStateChange",
+            call: hungUpCall,
+            declineReason: reason,
+            declineMessage: message,
+          });
+        } else {
+          hungUpCall.state = "finished";
+          this.emitEvent({
+            type: "callStateChange",
+            call: hungUpCall,
+          });
+        }
+      }
+
+      this.pluginHandle.hangup();
+    }
+  }
+
+  private handlePluginError(error: JanusPluginError) {
+    if (error.code === 478) {
+      // Пользователь не существует
+      if (this.activeCall && this.activeCall.state === "unanswered") {
+        let declinedCall = this.activeCall;
+        this.activeCall = null;
+
+        declinedCall.state = "declined";
+        this.emitEvent({
+          type: "callStateChange",
+          call: declinedCall,
+          declineReason: "error",
+          declineMessage: "Номер не существует",
+        })
+      }
+    } else if (error.code === 479) {
+      // Нельзя позвонить себе
+      if (this.activeCall && this.activeCall.state === "unanswered") {
+        let declinedCall = this.activeCall;
+        this.activeCall = null;
+
+        declinedCall.state = "declined";
+        this.emitEvent({
+          type: "callStateChange",
+          call: declinedCall,
+          declineReason: "error",
+          declineMessage: "Нельзя позвонить себе",
+        })
+      }
+    }
   }
 
   private emitEvent(event: ClientEvent) {
@@ -169,72 +502,56 @@ export default class CallingClient {
     }
   }
 
-  async acceptCall() {
-    if (!this.activeCall || this.activeCall.type != "incoming" || this.activeCall.state != "unanswered") {
-      throw new Error("Нет входящего звонка");
+  private getAudioElement(): HTMLAudioElement {
+    let audioElement = document.querySelector("#js-calling-client-audio") as HTMLAudioElement;
+    if (!audioElement) {
+      audioElement = document.createElement("audio");
+      audioElement.setAttribute("autoplay", "autoplay");
+      audioElement.style.display = "none";
+      audioElement.id = "js-calling-client-audio";
+      document.body.appendChild(audioElement);
     }
+    return audioElement;
+  }
 
-    await delay(400);
-
-    if (Math.random() < 0.2) {
-      throw new Error("Не удалось принять звонок");
-    } else {
-      this.activeCall.state = "accepted";
-      this.emitEvent({
-        type: "callStateChange",
-        call: this.activeCall!,
+  private registerInPlugin() {
+    return new Promise<void>((resolve, reject) => {
+      this.pluginHandle.send({
+        message: { request: "register", username: this.clientId },
+        success: () => {
+          resolve();
+        },
+        error: (error: any) => {
+          reject(error);
+        },
       });
-    }
-  }
-
-  async hangupCall() {
-    if (!this.activeCall) {
-      throw new Error("Нет активного звонка");
-    }
-
-    await delay(400);
-
-    if (Math.random() < 0.2) {
-      throw new Error("Не удалось отклонить звонок");
-    } else {
-      let declinedCall = this.activeCall!;
-      this.activeCall = null;
-      declinedCall.state = "declined";
-
-      this.emitEvent({
-        type: "callStateChange",
-        call: declinedCall,
-      });
-    }
-  }
-
-  setOutMuted(muted: boolean) {
-    this.isOutMuted = muted;
-  }
-
-  setInMuted(muted: boolean) {
-    this.isInMuted = muted;
-  }
-
-  callme() {
-    this.activeCall = {
-      type: "incoming",
-      fromNumber: "1231",
-      toNumber: this.number || "1234",
-      state: "unanswered",
-    };
-    this.emitEvent({
-      type: "incomingCall",
-      call: this.activeCall!,
     });
-    this.emitEvent({
-      type: "callStateChange",
-      call: this.activeCall!,
-    });
+  }
+
+  private assertHasRegistered() {
+    if (!this.hasRegistered) {
+      throw new Error("CallingClient не зарегистрирован.");
+    }
   }
 }
 
-window.callme = () => {
-  let client = CallingClient.get();
-  client.callme();
+interface JanusPluginEvent {
+  type: string,
+  msg: any,
+  jsep: any,
+}
+
+interface JanusPluginError {
+  code?: number,
+  text?: string,
+}
+
+const CLIENT_ID_PREFIX = "cyber.";
+
+function numberToClientId(number: string): string {
+  return CLIENT_ID_PREFIX + number;
+}
+
+function clientIdToNumber(clientId: string): string {
+  return clientId.slice(CLIENT_ID_PREFIX.length);
 }
