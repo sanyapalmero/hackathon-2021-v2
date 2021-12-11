@@ -43,9 +43,14 @@
 //
 //
 // Включение/выключение звука, для привязки к кнопке Talk:
+//
 // let client = CallingClient.get();
-// client.setMuted(false);
-// client.setMuted(true);
+// // Исходящий звук (т.е. микрофон)
+// client.setOutMuted(false);
+// client.setOutMuted(true);
+// // Входящий звук
+// client.setInMuted(false);
+// client.setInMuted(true);
 //
 //
 // Обработка ошибок: Методы, выполняющие любые действия, могут выбросить ошибку.
@@ -89,7 +94,8 @@ type ClientEventHandler = (event: ClientEvent) => void;
 export default class CallingClient {
   number: string | undefined = undefined;
   activeCall: Call | null = null;
-  muted: boolean = true;
+  isOutMuted: boolean = true;
+  isInMuted: boolean = false;
 
   private eventHandlers: ClientEventHandler[] = [];
   private static singleton: CallingClient | null = null;
@@ -202,8 +208,12 @@ export default class CallingClient {
     }
   }
 
-  setMuted(muted: boolean) {
-    this.muted = muted;
+  setOutMuted(muted: boolean) {
+    this.isOutMuted = muted;
+  }
+
+  setInMuted(muted: boolean) {
+    this.isInMuted = muted;
   }
 
   callme() {
