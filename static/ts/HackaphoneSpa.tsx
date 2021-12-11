@@ -18,7 +18,7 @@ interface HackaphoneSpaState {
 
 export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   client: CallingClient;
-  someOneCallingModal: HTMLDivElement | null = null;
+  renderedContent: preact.JSX.Element | undefined
 
   constructor(props: {}) {
     super(props);
@@ -296,20 +296,21 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   }
 
   render() {
-    let content: preact.JSX.Element | undefined = this.renderRegistrationWindow();
     if (this.state.isRegisted && !this.state.activeCall) {
-      content = this.renderNumberInputWindow();
+      this.renderedContent = this.renderNumberInputWindow();
     } else if (this.state.activeCall) {
       if (this.state.activeCall.state === "accepted") {
-        content = this.renderCallingWindow();
+        this.renderedContent = this.renderCallingWindow();
       } else if (this.state.activeCall.state === "unanswered" && this.state.activeCall.type === "outgoing") {
-        content = this.renderCallingWindow();
+        this.renderedContent = this.renderCallingWindow();
       }
+    } else if (!this.state.isRegisted) {
+      this.renderedContent = this.renderRegistrationWindow();
     }
 
     return (
       <div className="container d-flex justify-content-center" style="min-height: 95vh;">
-        {content}
+        {this.renderedContent}
         <div className={
           this.client.activeCall?.type === "incoming" && this.state.activeCall?.state === "unanswered" ? "card border-primary fixed-top" : "card border-primary d-none fixed-top"
         }>
