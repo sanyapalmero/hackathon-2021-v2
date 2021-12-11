@@ -8,6 +8,7 @@ interface HackaphoneSpaState {
   isRegisted: boolean,
   isMuted: boolean,
   isRadioEnabled: boolean,
+  isMicroButtonPressed: boolean,
 }
 
 export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
@@ -24,6 +25,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       isRegisted: false,
       isMuted: false,
       isRadioEnabled: false,
+      isMicroButtonPressed: false,
     }
 
     this.client = CallingClient.get();
@@ -127,6 +129,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   onPressMicroButton(event: h.JSX.TargetedMouseEvent<HTMLButtonElement>) {
     if (event.button === 0) {
       event.preventDefault();
+      this.setState({isMicroButtonPressed: true})
       this.client.setInMuted(false);
       this.client.setOutMuted(true);
     }
@@ -135,6 +138,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   onReleaseMicroButton(event: h.JSX.TargetedMouseEvent<HTMLButtonElement>) {
     if (event.button === 0) {
       event.preventDefault();
+      this.setState({isMicroButtonPressed: false})
       this.client.setInMuted(true);
       this.client.setOutMuted(false);
     }
@@ -189,14 +193,18 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
           </div>
         </div>
         {/* кнопки */}
+        {/* Микрофон */}
         <div className="fixed-bottom">
           <div class="d-flex justify-content-center align-items-center">
-            <button onMouseUp={(event) => { this.onPressMicroButton(event) }} onMouseDown={(event) => { this.onReleaseMicroButton(event) }} className="btn-primary rounded-circle m-2 p-3 text-white shadow-sm border border-2 border-secondary" style="width: 10vh; height: 10vh;" data-bs-toggle="tooltip" data-bs-placement="top" title="Говорить">
+            <button onMouseUp={(event) => { this.onPressMicroButton(event) }} onMouseDown={(event) => { this.onReleaseMicroButton(event) }} className="btn-primary rounded-circle m-2 p-3 text-white shadow-sm border border-2 border-secondary position-relative" style="width: 10vh; height: 10vh;" data-bs-toggle="tooltip" data-bs-placement="top" title="Говорить">
+            <div className={this.state.isMicroButtonPressed ? "spinner-border text-light position-absolute d-none" : "spinner-border text-light position-absolute"} role="status" style="left:0;top:0;width:100%;height:100%;">
+            </div>
               <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" fill="currentColor" className="bi bi-mic" viewBox="0 0 16 16">
                 <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5z" />
                 <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0v5zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3z" />
               </svg>
             </button>
+            {/* Радио Няня */}
             <button onClick={(event) => {this.onPressRadioButton(event)}} className="btn-primary rounded-circle m-2 p-3 text-white shadow-sm border border-2 border-secondary position-relative" style="width: 10vh; height: 10vh;" data-bs-toggle="tooltip" data-bs-placement="top" title="Я - Радионяня">
             <div className={this.state.isRadioEnabled ? "spinner-grow text-light position-absolute" : "spinner-grow text-light position-absolute d-none"} role="status" style="left:0;top:0;width:100%;height:100%;">
             </div>
