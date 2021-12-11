@@ -105,7 +105,7 @@ export default class CallingClient {
     // "wss://videos-webrtc.dev.avalab.io/websocket",
     "https://videos-webrtc.dev.avalab.io/restapi",
   ];
-  static DEBUG_JANUS = true;
+  static DEBUG_JANUS = false;
 
   private static singleton: CallingClient | null = null;
 
@@ -129,7 +129,7 @@ export default class CallingClient {
     return this.singleton;
   }
 
-  private constructor() {}
+  private constructor() { }
 
   async register(number: string): Promise<void> {
     this.number = number;
@@ -288,7 +288,7 @@ export default class CallingClient {
   }
 
   private assertBrowserSupport() {
-    if(!Janus.isWebrtcSupported()) {
+    if (!Janus.isWebrtcSupported()) {
       alert("Этот браузер устарел и не поддерживает данный проект.");
       throw new Error("WebRTC is not supported.");
     }
@@ -386,7 +386,7 @@ export default class CallingClient {
         call: this.activeCall!,
       });
     } else if (event.type === "accepted") {
-      if(event.jsep) this.pluginHandle.handleRemoteJsep({ jsep: event.jsep });
+      if (event.jsep) this.pluginHandle.handleRemoteJsep({ jsep: event.jsep });
 
       this.setOutMuted(true);
       this.setInMuted(false);
@@ -400,8 +400,8 @@ export default class CallingClient {
         });
       }
     } else if (event.type === "update") {
-      if(event.jsep) {
-        if(event.jsep.type === "answer") {
+      if (event.jsep) {
+        if (event.jsep.type === "answer") {
           this.pluginHandle.handleRemoteJsep({ jsep: event.jsep });
         } else {
           this.pluginHandle.createAnswer(
