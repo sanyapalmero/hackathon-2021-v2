@@ -276,6 +276,15 @@ export default class CallingClient {
     audioElement.volume = muted ? 0.0 : 1.0;
   }
 
+  // Громкость входящего звука. [0.0..1.0]
+  getInVolume(): number {
+    if (this.pluginHandle && this.pluginHandle.webrtcStuff.pc) {
+      return this.pluginHandle.getRemoteVolume();
+    } else {
+      return 0;
+    }
+  }
+
   private async initJanus() {
     return new Promise<void>(resolve => {
       Janus.init({
