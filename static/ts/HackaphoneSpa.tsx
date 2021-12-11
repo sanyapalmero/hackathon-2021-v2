@@ -1,5 +1,10 @@
 import { Component, h } from "preact";
 import CallingClient, { Call } from "./client";
+import { Notyf } from 'notyf';
+
+// Create an instance of Notyf
+const notyf = new Notyf();
+
 
 interface HackaphoneSpaState {
   userNumber: string | null,
@@ -46,6 +51,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   async registerNewClient() {
     try {
       if (!this.state.userNumber) {
+        notyf.error('Введите корректный номер!');
         console.error("Введите номер!");
         return
       }
@@ -54,6 +60,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
     } catch (e) {
       console.error(e);
     }
+    notyf.success('Регистрация прошла успешно, ура!');
   }
 
   async changeVolume(event: h.JSX.TargetedMouseEvent<HTMLButtonElement>) {
@@ -115,11 +122,13 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
   async makeCall() {
     if (!this.state.dialNumber) {
       console.error("Введите номер абонента");
+      notyf.error('Введите номер абонента');
       return
     }
     try {
       this.client.call(this.state.dialNumber);
     } catch (e) {
+      notyf.error('Ошибка.');
       console.error(e);
     }
   }
