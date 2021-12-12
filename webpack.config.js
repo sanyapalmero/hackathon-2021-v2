@@ -10,7 +10,7 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
+        test: /\.tsx?|\.jsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
       },
@@ -33,13 +33,6 @@ module.exports = {
             },
           },
         ]
-      },
-      {
-        test: require.resolve('janus-gateway'),
-        loader: 'exports-loader',
-         options: {
-           exports: 'Janus',
-         },
       },
       {
         test: /\.eot$|\.svg$|\.ttf$|\.woff$|\.woff2$|\.png$|\.gif$/,

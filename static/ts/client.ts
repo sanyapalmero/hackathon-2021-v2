@@ -60,7 +60,7 @@
 // Входящий звонок можно для удобства спровоцировать, вызвав в консоли браузера:
 // callme();
 
-import { Janus } from "janus-gateway";
+import { Janus } from "./janus";
 import { Notyf } from 'notyf';
 
 // Create an instance of Notyf
