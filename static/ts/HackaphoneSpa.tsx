@@ -22,6 +22,7 @@ interface HackaphoneSpaState {
   isRadioEnabled: boolean,
   isMicroButtonPressed: boolean,
   contacts: Contact[],
+  inVolume: number,
 }
 
 export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
@@ -40,6 +41,7 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       isRadioEnabled: false,
       isMicroButtonPressed: false,
       contacts: [],
+      inVolume: 0,
     }
 
     this.client = CallingClient.get();
@@ -61,6 +63,10 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
     setInterval(() => {
       this.reloadContacts();
     }, 2000);
+
+    setInterval(() => {
+      this.setState({ inVolume: this.client.getInVolume() });
+    }, 50);
   }
 
   async registerNewClient() {
@@ -368,6 +374,8 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
 
     let otherName = this.getContactName(otherNumber);
 
+    let volumeBarHeight = Math.round(this.state.inVolume * 48);
+
     return (
       <div className="d-flex flex-column" style="min-height: 100vh;">
         <div className="bg-info text-white flex-grow-1 d-flex flex-column justify-content-center align-items-center">
@@ -377,13 +385,17 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
               <h1 style="font-size: 32px;">{otherNumber}</h1>
               {otherName ? <h2 class="fw-normal" style="margin-top: 8px;">{otherName}</h2> : null}
             </div>
-            <div>
+            <div class="d-flex align-items-center">
               <button
                 onClick={(event) => { this.mutePerson(event) }}
                 className="round-button"
+                style="margin-right: 16px;"
               >
                 <i className={classNames("round-button__icon", "bi", this.state.isMuted ? "bi-volume-mute" : "bi-volume-up")}></i>
               </button>
+              <div style="position: relative; width: 16px; height: 48px; background-color: rgba(255, 255, 255, 0.4);">
+                <div style={`position: absolute; left: 0; bottom: 0; right: 0; height: ${volumeBarHeight}px; background: white;`}></div>
+              </div>
             </div>
           </div>
         </div>
