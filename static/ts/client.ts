@@ -478,7 +478,7 @@ export default class CallingClient {
 
   private handlePluginError(error: JanusPluginError) {
     if (error.code === 478) {
-      notyf.error('Пользователь не существует');// Пользователь не существует
+      notyf.error('Этот номер не в сети');// Пользователь не существует
       if (this.activeCall && this.activeCall.state === "unanswered") {
         let declinedCall = this.activeCall;
         this.activeCall = null;
@@ -487,7 +487,7 @@ export default class CallingClient {
           type: "callStateChange",
           call: declinedCall,
           declineReason: "error",
-          declineMessage: "Номер не существует",
+          declineMessage: "Этот номер не в сети",
         })
       }
     } else if (error.code === 479) {
