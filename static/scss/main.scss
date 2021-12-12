@@ -1,3 +1,42 @@
 @import "./bootstrap/";
 @import "bootstrap-icons/font/bootstrap-icons.css";
 @import 'notyf/notyf.min.css'; // for React, Vue and Svelte
+
+.regform__image {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+.regform__form {
+    width: 100%;
+    z-index: 1;
+    position: relative;
+    margin-top: -72px;
+    background-color: #fff;
+}
+
+.page {
+    min-height: 100vh;
+    display: flex;
+    flex-flow: column;
+}
+.page__content {
+    flex-grow: 1;
+}
+
+.round-button {
+    width: 48px;
+    height: 48px;
+    position: relative;
+    color: inherit;
+    background: none;
+    border: none;
+}
+.round-button__icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 40px;
+    color: inherit;
+}
