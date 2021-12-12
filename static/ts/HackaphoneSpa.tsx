@@ -7,14 +7,21 @@ import classNames from "classnames";
 const notyf = new Notyf();
 
 
+interface Contact {
+  name: string,
+  number: string,
+}
+
 interface HackaphoneSpaState {
   userNumber: string | null,
+  userName: string,
   dialNumber: string | null,
   activeCall: Call | null,
   isRegisted: boolean,
   isMuted: boolean,
   isRadioEnabled: boolean,
   isMicroButtonPressed: boolean,
+  contacts: Contact[],
 }
 
 export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
@@ -25,12 +32,14 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
 
     this.state = {
       userNumber: null,
+      userName: "",
       dialNumber: null,
       activeCall: null,
       isRegisted: false,
       isMuted: false,
       isRadioEnabled: false,
       isMicroButtonPressed: false,
+      contacts: [],
     }
 
     this.client = CallingClient.get();
@@ -48,6 +57,10 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
         }
       }
     });
+
+    setInterval(() => {
+      this.reloadContacts();
+    }, 2000);
   }
 
   async registerNewClient() {
@@ -68,7 +81,15 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
         return
       }
       await this.client.register(this.state.userNumber);
-      this.setState({ isRegisted: true })
+      this.setState({ isRegisted: true });
+
+      if (this.state.userName) {
+        this.saveContact();
+      } else {
+        this.setState({userName: this.getContactName(this.state.userNumber)})
+      }
+      this.removeSelfFromContacts();
+
     } catch (e) {
       console.error(e);
     }
@@ -189,6 +210,42 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
     }
   }
 
+  saveContact() {
+    fetch("/contacts/", {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: this.state.userName,
+        number: this.state.userNumber,
+      }),
+    });
+  }
+
+  async reloadContacts() {
+    let resp = await fetch("/contacts/");
+    let contacts = await resp.json() as Contact[];
+    contacts = contacts.filter(contact => {
+      if (!contact.name) return false;
+      if (this.state.isRegisted && contact.number === this.state.userNumber) return false;
+      return true;
+    });
+    this.setState({contacts});
+  }
+
+  getContactName(number: string): string | undefined {
+    return this.state.contacts.find(c => c.number === number)?.name;
+  }
+
+  removeSelfFromContacts() {
+    let contacts = this.state.contacts.filter(contact => {
+      if (contact.number === this.state.userNumber) return false;
+      return true;
+    });
+    this.setState({contacts});
+  }
+
   renderRegistrationWindow() {
     return (
       <div className="d-flex justify-content-center">
@@ -203,11 +260,22 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
                 <label class="form-label">Номер этого устройства</label>
                 <input
                   value={this.state.userNumber ? this.state.userNumber : ""}
-                  onChange={event => this.setState({ userNumber: (event.target as HTMLInputElement).value })}
+                  onInput={event => this.setState({ userNumber: (event.target as HTMLInputElement).value })}
                   type="text"
                   className="form-control"
                   maxLength={4}
                   placeholder="1234"
+                />
+              </div>
+
+              <div className="form-group mb-3">
+                <label class="form-label">Название (необязательно)</label>
+                <input
+                  value={this.state.userName}
+                  onInput={event => this.setState({ userName: (event.target as HTMLInputElement).value })}
+                  type="text"
+                  className="form-control"
+                  placeholder="Без названия"
                 />
               </div>
 
@@ -298,13 +366,16 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       otherNumber = this.state.activeCall.toNumber;
     }
 
+    let otherName = this.getContactName(otherNumber);
+
     return (
       <div className="d-flex flex-column" style="min-height: 100vh;">
         <div className="bg-info text-white flex-grow-1 d-flex flex-column justify-content-center align-items-center">
-          <div className="d-flex flex-column align-items-center" style="margin-top: 60px;">
+          <div className="d-flex flex-column align-items-center text-center" style="margin-top: 60px;">
             <i class="bi bi-telephone-fill" style="font-size: 54px; opacity: 0.5; margin-bottom: 26px;"></i>
             <div style="margin-bottom: 24px;">
-              <h1 style="margin-bottom: 0;">{otherNumber}</h1>
+              <h1 style="font-size: 32px;">{otherNumber}</h1>
+              {otherName ? <h2 class="fw-normal" style="margin-top: 8px;">{otherName}</h2> : null}
             </div>
             <div>
               <button
@@ -341,7 +412,19 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       });
     }
 
-    // Здесь можно добавить в contacts контакты, найденные фильтром
+    let query = this.state.dialNumber || "";
+    for (const contact of this.state.contacts) {
+      if (
+        contact.number.indexOf(query) === 0 ||
+        contact.name.toLowerCase().indexOf(query.toLowerCase()) === 0
+      ) {
+        contacts.push({
+          title: contact.number,
+          description: contact.name,
+          dial: contact.number,
+        });
+      }
+    }
 
     return contacts.map(contact => (
       <button
@@ -361,7 +444,8 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       <div class="container">
         <div class="text-center" style="padding-top: 40px; padding-bottom: 40px; margin-bottom: 8px;">
           <h6 class="fw-normal text-muted" style="margin-bottom: 28px;">Ваш номер Hackaphone</h6>
-          <h1>{this.state.userNumber}</h1>
+          <h1 style="font-size: 32px;">{this.state.userNumber}</h1>
+          {this.state.userName ? <h2 class="text-muted fw-normal" style="margin-top: 8px;">{this.state.userName}</h2> : null}
         </div>
         <div>
           <input
@@ -431,12 +515,15 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
       return null;
     }
 
+    let fromName = this.getContactName(this.state.activeCall.fromNumber);
+
     return (
       <div className="card text-white text-center bg-info fixed-top shadow" style="margin: 12px;">
         <div className="card-header">Входящий вызов</div>
         <div className="card-body">
           <div style="margin-bottom: 16px;">
             <h2>{this.state.activeCall.fromNumber}</h2>
+            {fromName ? <div style="margin-top: 8px;">{fromName}</div> : null}
           </div>
           <div className="d-flex">
             <button onClick={() => this.acceptCall()} type="button" className="btn btn-success" style="flex: 1 1 0; margin-right: 4px;">Принять</button>
