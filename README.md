@@ -1,7 +1,6 @@
 # Онлайн-хакатон Оренбург+Тюмень
 
 ## Hackaphone Push To Talk app by Cyber Team
-___
 
 ### Тестовая версия
 Протестировать проект можно перейдя по ссылке: https://hackaphone.avagner.ru/
