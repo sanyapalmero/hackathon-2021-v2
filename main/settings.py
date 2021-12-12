@@ -144,8 +144,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-PWA_APP_NAME = "Faceter"
-PWA_APP_DESCRIPTION = "Faceter Push To Talk"
+PWA_APP_NAME = "Hackaphone"
+PWA_APP_DESCRIPTION = "Hackaphone Push To Talk"
 PWA_APP_THEME_COLOR = "#0A0302"
 PWA_APP_BACKGROUND_COLOR = "#ffffff"
 PWA_APP_DISPLAY = "standalone"
