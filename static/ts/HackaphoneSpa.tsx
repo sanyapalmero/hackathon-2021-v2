@@ -57,6 +57,16 @@ export default class HackaphoneSpa extends Component<{}, HackaphoneSpaState> {
         console.error("Введите номер!");
         return
       }
+      if (this.state.userNumber.length != 4) {
+        notyf.error('Номер состоит ровно из 4 элементов.');
+        console.error("Номер состоит ровно из 4 элементов.");
+        return
+      }
+      if (isNaN(+this.state.userNumber)) {
+        notyf.error('Номер состоит только из цифр.');
+        console.error("Номер состоит только из цифр.");
+        return
+      }
       await this.client.register(this.state.userNumber);
       this.setState({ isRegisted: true })
     } catch (e) {
