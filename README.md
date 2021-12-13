@@ -3,7 +3,7 @@
 ## Hackaphone Push To Talk app by Cyber Team
 
 ### Демонстрация работы проекта
-* https://youtu.be/lfu5wwO_X5I
+https://youtu.be/lfu5wwO_X5I
 
 ### Тестовая версия
 Протестировать проект можно перейдя по ссылке: https://hackaphone.avagner.ru/
