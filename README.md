@@ -36,7 +36,7 @@ https://youtu.be/lfu5wwO_X5I
 ### Участники команды
 * Олег Ямников (Full Stack, дизайн): https://oyam.dev/
 * Олег Кузнецов (капитан): https://github.com/DeFiXiK
-* Александр Вагнер (Full Stack): https://github.com/sanyapalmero
+* Александр Вагнер (Full Stack): https://vagner.one/
 * Никита Косянов (Backend): https://github.com/4madeuz
 * Владимир Смелов (Frontend): https://github.com/Vladimir556
 
